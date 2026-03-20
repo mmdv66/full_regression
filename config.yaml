@@ -1,0 +1,44 @@
+data:
+  train_path: data/train.csv
+  test_path: data/test.csv
+
+preprocessing:
+  target: SalePrice
+  drop_id: true
+  missing_threshold: 7
+  log_transform_target: true
+
+models:
+  linear: true
+  lasso:
+    alpha: 0.001
+  ridge:
+    alpha: 1.0
+  elasticnet:
+    alphas: [0.001, 0.01, 0.1, 1.0]
+    l1_ratios: [0.2, 0.5, 0.8]
+  knn:
+    n_iter: 50
+  random_forest:
+    n_iter: 50
+  catboost:
+    n_estimators: [100, 300, 500, 700, 1000]
+    learning_rate: [0.01, 0.02, 0.05, 0.1, 0.2]
+    max_depth: [3, 4, 5, 6, 7]
+  lightgbm:
+    n_iter: 30
+  xgboost:
+    n_estimators: [200, 300, 700]
+    learning_rate: [0.05, 0.1]
+    max_depth: [3, 5]
+
+nn:
+  epochs_simple: 50
+  epochs_improved: 200
+  batch_size: 32
+  lr: 0.001
+
+training:
+  test_size: 0.25
+  random_state: 42
+  cv_folds: 5
