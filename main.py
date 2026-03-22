@@ -21,7 +21,11 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 
 
-# ── Data ──────────────────────────────────────────────────────────────────────
+import warnings
+warnings.filterwarnings("ignore")
+
+
+# ── Data 
 
 def load_data(cfg):
     df_train = pd.read_csv(cfg["data"]["train_path"])
@@ -33,7 +37,6 @@ def preprocess(df_train, df_test, cfg):
     """Удаляет выбросы, заполняет пропуски, разделяет X/y."""
     target = cfg["preprocessing"]["target"]
 
-    # Удаление выбросов
     df_train = df_train.drop(
         df_train[(df_train["GrLivArea"] > 4000) & (df_train[target] < 300_000)].index
     )
@@ -41,7 +44,6 @@ def preprocess(df_train, df_test, cfg):
     y = df_train[target]
     X = df_train.drop(columns=["Id", target], errors="ignore")
 
-    # Топ-N признаков с пропусками — удалить
     n = cfg["preprocessing"]["missing_threshold"]
     missing = X.isnull().sum().sort_values(ascending=False)
     drop_cols = list(missing[:n].index)
@@ -49,7 +51,6 @@ def preprocess(df_train, df_test, cfg):
     X        = X.drop(columns=drop_cols, errors="ignore")
     df_test  = df_test.drop(columns=["Id"] + drop_cols, errors="ignore")
 
-    # Заполнение оставшихся пропусков модой
     X       = X.apply(lambda col: col.fillna(col.value_counts().index[0]))
     df_test = df_test.apply(lambda col: col.fillna(col.value_counts().index[0]))
 
@@ -71,7 +72,7 @@ def build_preprocessor(X):
     return preprocessor
 
 
-# ── Metrics ───────────────────────────────────────────────────────────────────
+# Metrics 
 
 def print_rmse(name, y_true, y_pred):
     rmse = root_mean_squared_error(y_true, y_pred)
@@ -79,7 +80,7 @@ def print_rmse(name, y_true, y_pred):
     return rmse
 
 
-# ── Sklearn models ────────────────────────────────────────────────────────────
+# Sklearn models 
 
 def train_sklearn_models(X_tr, y_tr_log, X_val, y_val, cfg):
     """Обучает все sklearn/boosting модели, возвращает предсказания и RMSE."""
@@ -157,7 +158,7 @@ def train_sklearn_models(X_tr, y_tr_log, X_val, y_val, cfg):
     return results
 
 
-# ── Neural network ────────────────────────────────────────────────────────────
+#Neural network 
 
 class HousePriceDataset(Dataset):
     def __init__(self, X, y):
@@ -227,7 +228,7 @@ def train_nn(X_tr, y_tr_log, X_val, y_val_log, cfg):
     return np.expm1(pred_log)
 
 
-# ── Stacking ──────────────────────────────────────────────────────────────────
+#  Stacking 
 
 def train_stacking(sklearn_results, X_tr, y_tr_log, y_val, cfg):
     """OOF стекинг поверх sklearn моделей."""
@@ -241,7 +242,6 @@ def train_stacking(sklearn_results, X_tr, y_tr_log, y_val, cfg):
     meta.fit(oof_preds, y_tr_log)
 
     val_preds  = np.column_stack([v["pred"] for v in sklearn_results.values()])
-    # val preds уже в исходном масштабе — логарифмируем для мета-модели
     val_preds_log = np.log1p(val_preds)
     stacking_pred = np.expm1(meta.predict(val_preds_log))
 
@@ -249,7 +249,7 @@ def train_stacking(sklearn_results, X_tr, y_tr_log, y_val, cfg):
     return stacking_pred
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+#Main 
 
 def main():
     with open("config.yaml") as f:
@@ -283,7 +283,7 @@ def main():
     print("\n=== Стекинг ===")
     train_stacking(sklearn_results, X_tr_proc, y_tr_log, y_val, cfg)
 
-    print("\n=== Итоговая таблица ===")
+    print("\n=== Итоговая таблица RMSE ===")
     all_rmse = {name: v["rmse"] for name, v in sklearn_results.items()}
     all_rmse["ImprovedNN"] = root_mean_squared_error(y_val, nn_pred)
     summary = pd.DataFrame(all_rmse.items(), columns=["Model", "RMSE"]).sort_values("RMSE")
